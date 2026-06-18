@@ -455,12 +455,12 @@
       <h2>What's your role?</h2>
       <p>Start a team or join one with an invite code.</p>
     </div>
-    <div class="card" style="cursor:pointer;transition:border-color .2s;" onclick="showPage('page-register-captain')" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#1e1e2e'">
+    <div class="card" style="cursor:pointer;transition:border-color .2s;" onclick="goToPhone('captain')" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#1e1e2e'">
       <div style="font-size:28px;margin-bottom:8px;">🎖️</div>
       <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Become a Captain</div>
       <div style="color:var(--muted);font-size:13px;">Create a new team, get an invite code, and recruit your squad.</div>
     </div>
-    <div class="card" style="cursor:pointer;transition:border-color .2s;" onclick="showPage('page-join')" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#1e1e2e'">
+    <div class="card" style="cursor:pointer;transition:border-color .2s;" onclick="goToPhone('member')" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#1e1e2e'">
       <div style="font-size:28px;margin-bottom:8px;">🤝</div>
       <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Join a Team</div>
       <div style="color:var(--muted);font-size:13px;">Have an invite code or link? Enter it to join your captain's squad.</div>
@@ -568,15 +568,50 @@
 
 </div>
 
+
+  <!-- PAGE: PHONE ENTRY -->
+  <div id="page-phone" class="page">
+    <div class="page-header">
+      <h2>Verify your number</h2>
+      <p>We'll send a one-time code via SMS to confirm it's really you.</p>
+    </div>
+    <div class="field">
+      <label>Phone Number</label>
+      <input type="tel" id="phoneInput" placeholder="+1 234 567 8900"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Include country code e.g. +1 for US, +44 for UK</div>
+    </div>
+    <div id="recaptcha-container" style="margin-bottom:16px;"></div>
+    <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()">Send Code</button>
+    <br/><br/>
+    <button class="btn-ghost" onclick="showPage('page-choose')">← Back</button>
+  </div>
+
+  <!-- PAGE: OTP VERIFY -->
+  <div id="page-otp" class="page">
+    <div class="page-header">
+      <h2>Enter your code</h2>
+      <p id="otpSubtitle">We sent a 6-digit code to your number.</p>
+    </div>
+    <div class="field">
+      <label>Verification Code</label>
+      <input type="number" id="otpInput" placeholder="123456" maxlength="6" style="font-family:'Space Mono',monospace;font-size:22px;letter-spacing:4px;text-align:center;"/>
+    </div>
+    <button class="btn-primary" id="verifyOtpBtn" onclick="verifyOTP()">Verify & Continue</button>
+    <br/><br/>
+    <button class="btn-ghost" onclick="showPage('page-phone')">← Resend code</button>
+  </div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
 <!-- FIREBASE + SOLANA -->
 <script type="module">
-  import { initializeApp }              from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { initializeApp }                        from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
   import { getFirestore, doc, setDoc,
-           getDoc, collection, addDoc,
-           onSnapshot, query, where }   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+           getDoc, collection,
+           onSnapshot, query, where }             from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+  import { getAuth, RecaptchaVerifier,
+           signInWithPhoneNumber }                from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey:            "AIzaSyDW5aBwPQxLZmzWYfYsZnxxNlaBHuEsBTM",
@@ -590,6 +625,7 @@
 
   const fbApp = initializeApp(firebaseConfig);
   const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
 
   /* ── STATE ── */
   let walletAddress = null;
@@ -646,6 +682,99 @@
         toast('Could not connect: ' + (e.message || 'unknown error'), 'error');
       }
     }
+  }
+
+
+  /* ── PHONE AUTH STATE ── */
+  let confirmationResult = null;
+  let pendingRole        = null; // 'captain' or 'member'
+
+  /* ── SETUP RECAPTCHA ── */
+  function setupRecaptcha() {
+    if (window.recaptchaVerifier) return;
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {}
+    });
+  }
+
+  /* ── SEND OTP ── */
+  window.sendOTP = async function() {
+    const phone = document.getElementById('phoneInput').value.trim();
+    if (!phone.startsWith('+') || phone.length < 8) {
+      toast('Enter a valid phone number with country code.', 'error');
+      return;
+    }
+
+    // Check phone not already used by someone else with a different wallet
+    const phoneDoc = await getDoc(doc(db, 'phoneIndex', phone.replace(/\D/g,'')));
+    if (phoneDoc.exists() && phoneDoc.data().wallet !== walletAddress) {
+      toast('This phone number is already registered to another wallet.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('sendOtpBtn');
+    btn.innerHTML = '<span class="spinner"></span>Sending...';
+    btn.disabled = true;
+
+    try {
+      setupRecaptcha();
+      confirmationResult = await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier);
+      document.getElementById('otpSubtitle').textContent = `Code sent to ${phone}`;
+      toast('SMS code sent!');
+      showPage('page-otp');
+    } catch(e) {
+      toast('Error: ' + (e.message || 'Could not send SMS'), 'error');
+      window.recaptchaVerifier = null;
+    } finally {
+      btn.innerHTML = 'Send Code';
+      btn.disabled = false;
+    }
+  }
+
+  /* ── VERIFY OTP ── */
+  window.verifyOTP = async function() {
+    const code = document.getElementById('otpInput').value.trim();
+    if (code.length !== 6) { toast('Enter the 6-digit code.', 'error'); return; }
+
+    const btn = document.getElementById('verifyOtpBtn');
+    btn.innerHTML = '<span class="spinner"></span>Verifying...';
+    btn.disabled = true;
+
+    try {
+      const result = await confirmationResult.confirm(code);
+      const phone  = result.user.phoneNumber;
+
+      // Save phone → wallet mapping to prevent dual roles
+      await setDoc(doc(db, 'phoneIndex', phone.replace(/\D/g,'')), {
+        wallet:     walletAddress,
+        phone:      phone,
+        verifiedAt: Date.now()
+      });
+
+      toast('Phone verified! ✓');
+
+      // Route to correct registration page
+      if (pendingRole === 'captain') {
+        showPage('page-register-captain');
+      } else {
+        showPage('page-join');
+      }
+    } catch(e) {
+      toast('Wrong code. Try again.', 'error');
+    } finally {
+      btn.innerHTML = 'Verify & Continue';
+      btn.disabled = false;
+    }
+  }
+
+  /* ── OVERRIDE CHOOSE ROLE CARDS to go through phone verify first ── */
+  window.goToPhone = function(role) {
+    pendingRole = role;
+    // Reset recaptcha
+    window.recaptchaVerifier = null;
+    document.getElementById('recaptcha-container').innerHTML = '';
+    showPage('page-phone');
   }
 
   /* ── AUTO-CONNECT if already trusted ── */
