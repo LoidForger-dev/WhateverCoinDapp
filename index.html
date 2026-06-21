@@ -63,13 +63,6 @@
     .btn-primary:hover { background: #6d28d9; }
     .btn-primary:active { transform: scale(.98); }
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-secondary {
-      background: transparent; color: var(--accent2); border: 1px solid rgba(124,58,237,.4);
-      border-radius: 10px; padding: 14px 20px; font-family: 'Space Grotesk', sans-serif;
-      font-size: 15px; font-weight: 600; cursor: pointer; width: 100%;
-      transition: border-color .2s, background .2s;
-    }
-    .btn-secondary:hover { border-color: var(--accent); background: rgba(124,58,237,.08); }
     .btn-ghost { background: transparent; color: var(--muted); border: none; font-family: 'Space Grotesk', sans-serif; font-size: 14px; cursor: pointer; padding: 8px 0; text-decoration: underline; text-underline-offset: 3px; }
     .btn-ghost:hover { color: var(--text); }
 
@@ -84,9 +77,7 @@
     .field input:focus { border-color: var(--accent); }
     .field input::placeholder { color: var(--muted); }
 
-    .step-indicator {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 28px;
-    }
+    .step-indicator { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
     .step { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
     .step.done { background: var(--green); color: #fff; }
     .step.active { background: var(--accent); color: #fff; }
@@ -123,7 +114,7 @@
 
     .verified-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--green); font-weight: 600; margin-bottom: 20px; }
 
-    .otp-input { font-family: 'Space Mono', monospace !important; font-size: 28px !important; letter-spacing: 8px !important; text-align: center !important; }
+    .email-icon { font-size: 48px; text-align: center; margin-bottom: 20px; }
 
     #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 500; transition: transform .3s ease; z-index: 999; white-space: nowrap; max-width: 90vw; }
     #toast.show { transform: translateX(-50%) translateY(0); }
@@ -146,14 +137,14 @@
   <div id="page-home" class="page active">
     <div class="hero-tag">Solana · On-Chain Teams</div>
     <h1>Form your<br><span class="grad">squad.</span></h1>
-    <p class="hero-sub">Verify your phone, connect your wallet, and build your team for on-chain staking.</p>
+    <p class="hero-sub">Verify your email, connect your wallet, and build your team for on-chain staking.</p>
     <div class="hero-actions">
-      <button class="btn-primary" onclick="showPage('page-phone')">Get Started</button>
+      <button class="btn-primary" onclick="showPage('page-email')">Get Started</button>
     </div>
   </div>
 
-  <!-- STEP 2: PHONE NUMBER -->
-  <div id="page-phone" class="page">
+  <!-- STEP 2: EMAIL + PASSWORD -->
+  <div id="page-email" class="page">
     <div class="step-indicator">
       <div class="step active">1</div>
       <div class="step-line"></div>
@@ -162,22 +153,26 @@
       <div class="step pending">3</div>
     </div>
     <div class="page-header">
-      <h2>Verify your number</h2>
-      <p>Enter your phone number to receive a one-time SMS code.</p>
+      <h2 id="emailPageTitle">Create your account</h2>
+      <p id="emailPageSubtitle">Sign up with your email to verify it's really you.</p>
     </div>
     <div class="field">
-      <label>Phone Number</label>
-      <input type="tel" id="phoneInput" placeholder="+1 234 567 8900"/>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Include country code — e.g. +1 US, +44 UK, +27 SA</div>
+      <label>Email Address</label>
+      <input type="email" id="emailInput" placeholder="you@example.com"/>
     </div>
-    <div id="recaptcha-container"></div>
-    <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()">Send Code via SMS</button>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="passwordInput" placeholder="At least 6 characters"/>
+    </div>
+    <button class="btn-primary" id="emailAuthBtn" onclick="handleEmailAuth()">Sign Up</button>
     <br/><br/>
+    <button class="btn-ghost" id="toggleAuthModeBtn" onclick="toggleAuthMode()">Already have an account? Log in</button>
+    <br/>
     <button class="btn-ghost" onclick="showPage('page-home')">← Back</button>
   </div>
 
-  <!-- STEP 3: OTP -->
-  <div id="page-otp" class="page">
+  <!-- STEP 2.5: VERIFY EMAIL -->
+  <div id="page-verify-email" class="page">
     <div class="step-indicator">
       <div class="step done">✓</div>
       <div class="step-line done"></div>
@@ -185,20 +180,21 @@
       <div class="step-line"></div>
       <div class="step pending">3</div>
     </div>
-    <div class="page-header">
-      <h2>Enter your code</h2>
-      <p id="otpSubtitle">We sent a 6-digit code to your number.</p>
+    <div class="email-icon">📧</div>
+    <div class="page-header" style="text-align:center;">
+      <h2>Confirm your email</h2>
+      <p id="verifySubtitle">We sent a confirmation link to your email.</p>
     </div>
-    <div class="field">
-      <label>6-Digit Code</label>
-      <input type="number" id="otpInput" class="otp-input" placeholder="000000"/>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:13px;color:var(--muted);">Tap the link in the email, then come back and press the button below.</div>
     </div>
-    <button class="btn-primary" id="verifyOtpBtn" onclick="verifyOTP()">Verify Code</button>
+    <br/>
+    <button class="btn-primary" id="checkVerifiedBtn" onclick="checkEmailVerified()">I've Verified My Email</button>
     <br/><br/>
-    <button class="btn-ghost" onclick="resendOTP()">Resend code</button>
+    <button class="btn-ghost" onclick="resendVerification()">Resend email</button>
   </div>
 
-  <!-- STEP 4: CONNECT WALLET -->
+  <!-- STEP 3: CONNECT WALLET -->
   <div id="page-connect-wallet" class="page">
     <div class="step-indicator">
       <div class="step done">✓</div>
@@ -211,7 +207,7 @@
       <h2>Connect your wallet</h2>
       <p>Last step — link your Solana wallet to your verified account.</p>
     </div>
-    <div class="verified-badge">✓ Phone verified</div>
+    <div class="verified-badge">✓ Email verified</div>
     <button class="btn-primary" id="connectWalletBtn" onclick="connectWallet()">Connect Phantom Wallet</button>
   </div>
 
@@ -331,8 +327,9 @@
   import { getFirestore, doc, setDoc, getDoc,
            collection, onSnapshot,
            query, where }                      from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
-  import { getAuth, RecaptchaVerifier,
-           signInWithPhoneNumber }             from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword,
+           signInWithEmailAndPassword,
+           sendEmailVerification }              from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey:            "AIzaSyDW5aBwPQxLZmzWYfYsZnxxNlaBHuEsBTM",
@@ -349,22 +346,22 @@
   const auth  = getAuth(fbApp);
 
   /* ── STATE ── */
-  let walletAddress      = null;
-  let currentTeam        = null;
-  let confirmationResult = null;
-  let verifiedPhone      = null;
-  let unsubscribe        = null;
+  let walletAddress = null;
+  let currentTeam   = null;
+  let verifiedEmail = null;
+  let unsubscribe   = null;
 
-  /* ── EXPOSE TO WINDOW ── */
+  /* ── ROUTING ── */
   function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(id).classList.add('active');
   }
   window.showPage      = showPage;
   window.connectWallet = connectWallet;
-  window.sendOTP       = sendOTP;
-  window.verifyOTP     = verifyOTP;
-  window.resendOTP     = resendOTP;
+  window.handleEmailAuth     = handleEmailAuth;
+  window.toggleAuthMode      = toggleAuthMode;
+  window.checkEmailVerified  = checkEmailVerified;
+  window.resendVerification  = resendVerification;
   window.createTeam    = createTeam;
   window.joinTeam      = joinTeam;
   window.copyCode      = copyCode;
@@ -375,88 +372,106 @@
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = `show ${type}`;
-    setTimeout(() => t.className = '', 3000);
+    setTimeout(() => t.className = '', 3500);
   }
 
-  /* ── STEP 1: SEND OTP ── */
-  function setupRecaptcha() {
+  /* ── EMAIL/PASSWORD AUTH ── */
+  let isSignUpMode = true;
+
+  function toggleAuthMode() {
+    isSignUpMode = !isSignUpMode;
+    document.getElementById('emailPageTitle').textContent    = isSignUpMode ? 'Create your account' : 'Welcome back';
+    document.getElementById('emailPageSubtitle').textContent = isSignUpMode ? "Sign up with your email to verify it's really you." : 'Log in with your email and password.';
+    document.getElementById('emailAuthBtn').textContent      = isSignUpMode ? 'Sign Up' : 'Log In';
+    document.getElementById('toggleAuthModeBtn').textContent = isSignUpMode ? 'Already have an account? Log in' : "Don't have an account? Sign up";
+  }
+
+  async function handleEmailAuth() {
+    const email    = document.getElementById('emailInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
+
+    if (!email.includes('@') || !email.includes('.')) { toast('Enter a valid email address.', 'error'); return; }
+    if (password.length < 6) { toast('Password must be at least 6 characters.', 'error'); return; }
+
+    const btn = document.getElementById('emailAuthBtn');
+    btn.innerHTML = `<span class="spinner"></span>${isSignUpMode ? 'Creating account...' : 'Logging in...'}`;
+    btn.disabled = true;
+
     try {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
+      let result;
+      if (isSignUpMode) {
+        result = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(result.user);
+        document.getElementById('verifySubtitle').textContent = `Confirmation link sent to ${email}`;
+        toast('Account created! Check your email to confirm.');
+        showPage('page-verify-email');
+        return;
+      } else {
+        result = await signInWithEmailAndPassword(auth, email, password);
+        await result.user.reload();
+        if (!result.user.emailVerified) {
+          document.getElementById('verifySubtitle').textContent = `Confirmation link sent to ${email}`;
+          toast('Please verify your email first.', 'error');
+          showPage('page-verify-email');
+          return;
+        }
       }
-      document.getElementById('recaptcha-container').innerHTML = '';
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible', callback: () => {}
-      });
-    } catch(e) {
-      window.recaptchaVerifier = null;
-    }
-  }
-
-  async function sendOTP() {
-    const phone = document.getElementById('phoneInput').value.trim();
-    if (!phone.startsWith('+') || phone.length < 8) {
-      toast('Enter a valid number with country code e.g. +1...', 'error'); return;
-    }
-
-    // Check phone not already used by a different wallet
-    const phoneKey = phone.replace(/\D/g, '');
-    const phoneDoc = await getDoc(doc(db, 'phoneIndex', phoneKey));
-    if (phoneDoc.exists() && walletAddress && phoneDoc.data().wallet !== walletAddress) {
-      toast('This number is linked to another account.', 'error'); return;
-    }
-
-    const btn = document.getElementById('sendOtpBtn');
-    btn.innerHTML = '<span class="spinner"></span>Sending...';
-    btn.disabled = true;
-
-    try {
-      setupRecaptcha();
-      confirmationResult = await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier);
-      document.getElementById('otpSubtitle').textContent = `Code sent to ${phone}`;
-      toast('SMS code sent! Check your messages.');
-      showPage('page-otp');
-    } catch(e) {
-      toast('Error: ' + (e.message || 'Could not send SMS'), 'error');
-      window.recaptchaVerifier = null;
-    } finally {
-      btn.innerHTML = 'Send Code via SMS';
-      btn.disabled = false;
-    }
-  }
-
-  /* ── STEP 2: VERIFY OTP ── */
-  async function verifyOTP() {
-    const code = document.getElementById('otpInput').value.trim();
-    if (code.length !== 6) { toast('Enter the 6-digit code.', 'error'); return; }
-
-    const btn = document.getElementById('verifyOtpBtn');
-    btn.innerHTML = '<span class="spinner"></span>Verifying...';
-    btn.disabled = true;
-
-    try {
-      const result = await confirmationResult.confirm(code);
-      verifiedPhone = result.user.phoneNumber;
-      toast('Phone verified! ✓');
+      verifiedEmail = result.user.email;
+      toast('Logged in! ✓');
       showPage('page-connect-wallet');
       document.getElementById('walletBtn').style.display = 'block';
     } catch(e) {
-      toast('Wrong code. Try again.', 'error');
+      let msg = e.message || 'Authentication failed';
+      if (e.code === 'auth/email-already-in-use') msg = 'Email already registered. Try logging in instead.';
+      if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Wrong password.';
+      if (e.code === 'auth/user-not-found') msg = 'No account found. Try signing up instead.';
+      toast(msg, 'error');
     } finally {
-      btn.innerHTML = 'Verify Code';
+      btn.innerHTML = isSignUpMode ? 'Sign Up' : 'Log In';
       btn.disabled = false;
     }
   }
 
-  /* ── RESEND OTP ── */
-  async function resendOTP() {
-    window.recaptchaVerifier = null;
-    document.getElementById('recaptcha-container').innerHTML = '';
-    showPage('page-phone');
+  /* ── CHECK IF EMAIL NOW VERIFIED ── */
+  async function checkEmailVerified() {
+    const btn = document.getElementById('checkVerifiedBtn');
+    btn.innerHTML = '<span class="spinner"></span>Checking...';
+    btn.disabled = true;
+
+    try {
+      const user = auth.currentUser;
+      if (!user) { toast('Session expired. Please log in again.', 'error'); showPage('page-email'); return; }
+
+      await user.reload();
+      if (user.emailVerified) {
+        verifiedEmail = user.email;
+        toast('Email confirmed! ✓');
+        showPage('page-connect-wallet');
+        document.getElementById('walletBtn').style.display = 'block';
+      } else {
+        toast('Not verified yet — tap the link in your email first.', 'error');
+      }
+    } catch(e) {
+      toast('Error checking status.', 'error');
+    } finally {
+      btn.innerHTML = "I've Verified My Email";
+      btn.disabled = false;
+    }
   }
 
-  /* ── STEP 3: CONNECT WALLET ── */
+  /* ── RESEND VERIFICATION EMAIL ── */
+  async function resendVerification() {
+    try {
+      const user = auth.currentUser;
+      if (!user) { toast('Session expired. Please log in again.', 'error'); showPage('page-email'); return; }
+      await sendEmailVerification(user);
+      toast('Verification email resent!');
+    } catch(e) {
+      toast('Error: ' + (e.message || 'Could not resend'), 'error');
+    }
+  }
+
+  /* ── STEP 2: CONNECT WALLET ── */
   async function connectWallet() {
     try {
       const provider = window.phantom?.solana ?? window.solana;
@@ -470,11 +485,9 @@
       btn.textContent = walletAddress.slice(0,4) + '...' + walletAddress.slice(-4);
       btn.classList.add('connected');
 
-      // Save phone → wallet link
-      if (verifiedPhone) {
-        const phoneKey = verifiedPhone.replace(/\D/g, '');
-        await setDoc(doc(db, 'phoneIndex', phoneKey), {
-          wallet: walletAddress, phone: verifiedPhone, verifiedAt: Date.now()
+      if (verifiedEmail) {
+        await setDoc(doc(db, 'emailIndex', verifiedEmail.replace(/[.#$\[\]]/g, '_')), {
+          wallet: walletAddress, email: verifiedEmail, verifiedAt: Date.now()
         });
       }
 
@@ -525,9 +538,9 @@
 
     try {
       const code = Math.random().toString(36).substring(2,8).toUpperCase();
-      const teamData = { name, captainWallet: walletAddress, captainUsername: username, captainPhone: verifiedPhone, inviteCode: code, createdAt: Date.now() };
+      const teamData = { name, captainWallet: walletAddress, captainUsername: username, captainEmail: verifiedEmail, inviteCode: code, createdAt: Date.now() };
       await setDoc(doc(db, 'teams', walletAddress), teamData);
-      await setDoc(doc(db, 'members', walletAddress), { wallet: walletAddress, username, role: 'captain', phone: verifiedPhone, captainWallet: walletAddress, joinedAt: Date.now() });
+      await setDoc(doc(db, 'members', walletAddress), { wallet: walletAddress, username, role: 'captain', email: verifiedEmail, captainWallet: walletAddress, joinedAt: Date.now() });
       currentTeam = teamData;
       toast('Team created! 🎉');
       loadCaptainDashboard();
@@ -559,7 +572,7 @@
       const existing = await getDoc(doc(db, 'members', walletAddress));
       if (existing.exists()) { toast('You already belong to a team.', 'error'); btn.innerHTML = 'Join Team'; btn.disabled = false; return; }
 
-      await setDoc(doc(db, 'members', walletAddress), { wallet: walletAddress, username, role: 'member', phone: verifiedPhone, captainWallet: teamData.captainWallet, joinedAt: Date.now() });
+      await setDoc(doc(db, 'members', walletAddress), { wallet: walletAddress, username, role: 'member', email: verifiedEmail, captainWallet: teamData.captainWallet, joinedAt: Date.now() });
       currentTeam = teamData;
       toast(`Joined ${teamData.name}! 🤝`);
       loadMemberDashboard({ wallet: walletAddress, username, role: 'member', captainWallet: teamData.captainWallet });
@@ -621,12 +634,12 @@
   window.copyCode = function() { navigator.clipboard.writeText(currentTeam?.inviteCode || ''); toast('Invite code copied!'); }
   window.copyLink = function() { const link = `${location.href.split('?')[0]}?join=${currentTeam?.inviteCode}`; navigator.clipboard.writeText(link); toast('Invite link copied!'); }
 
-  /* ── AUTO JOIN FROM URL ── */
+  /* ── AUTO JOIN FROM URL (invite code, not email link) ── */
   const urlCode = new URLSearchParams(location.search).get('join');
   if (urlCode) document.getElementById('inviteInput').value = urlCode.toUpperCase();
 
-  /* ── AUTO RECONNECT returning user ── */
-  window.addEventListener('load', async () => {
+  /* ── INIT: try wallet auto-reconnect (email/password requires manual login) ── */
+  (async () => {
     const provider = window.phantom?.solana ?? window.solana;
     if (provider?.isPhantom) {
       try {
@@ -639,7 +652,7 @@
         await checkExistingUser();
       } catch(_) { /* not trusted yet */ }
     }
-  });
+  })();
 
 </script>
 </body>
