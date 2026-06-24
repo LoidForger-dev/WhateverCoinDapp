@@ -442,8 +442,9 @@
            signInWithEmailAndPassword }         from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
   // ================================================================
-  // ⚠️  SWAP THESE ADDRESSES WHEN ALEX DELIVERS THEM
-  const WHATEVER_MINT    = 'WHATEVER_MINT_ADDRESS_HERE';
+  // ✅ $WHATEVER token address set
+  // ⚠️  NFT_COLLECTION — swap when Alex delivers it
+  const WHATEVER_MINT    = 'AJba6TsLSNzpYHRajPBppEWiH8AFp43cxAefwMJ5pump';
   const NFT_COLLECTION   = 'MINING_NFT_COLLECTION_ADDRESS_HERE';
   const SOLANA_RPC       = 'https://api.mainnet-beta.solana.com';
   // ================================================================
@@ -616,11 +617,9 @@
   /* ── GET WHATEVER TOKEN PRICE ── */
   async function getWhateverPrice() {
     try {
-      // Will use DexScreener API once token is live
-      // const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${WHATEVER_MINT}`);
-      // const data = await res.json();
-      // return parseFloat(data.pairs[0]?.priceUsd || 0);
-      return 0; // placeholder until token is live
+      const res  = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${WHATEVER_MINT}`);
+      const data = await res.json();
+      return parseFloat(data.pairs?.[0]?.priceUsd || 0);
     } catch(e) {
       return 0;
     }
@@ -692,7 +691,15 @@
 
       // Update balance display
       document.getElementById('stakingBalance').textContent = balance.toLocaleString() + ' $WHATEVER';
-      document.getElementById('solEquivalent').textContent  = WHATEVER_MINT === 'WHATEVER_MINT_ADDRESS_HERE' ? 'Token address not set yet' : '—';
+      const tokenPrice = await getWhateverPrice();
+      const solPrice   = await getSolPrice();
+      if (tokenPrice > 0 && solPrice > 0) {
+        const usdValue  = balance * tokenPrice;
+        const solValue  = usdValue / solPrice;
+        document.getElementById('solEquivalent').textContent = solValue.toFixed(4) + ' SOL';
+      } else {
+        document.getElementById('solEquivalent').textContent = 'Price loading...';
+      }
 
       // Update safe sell limit
       document.getElementById('safeLimit').textContent = (balance * 0.9).toLocaleString() + ' $WHATEVER';
