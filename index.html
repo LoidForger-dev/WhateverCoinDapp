@@ -139,7 +139,8 @@
     .wallet-item.detected { border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.05); }
     .wallet-item.detected:hover { border-color: var(--green); background: rgba(34,197,94,.1); }
     .wallet-item.connecting { opacity: .7; pointer-events: none; }
-    .wallet-item img { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; background: var(--surface); object-fit: contain; padding: 4px; }
+    .wallet-icon-wrap { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--surface); }
+    .wallet-icon-wrap svg { width: 44px; height: 44px; display: block; }
     .wallet-item-info { flex: 1; }
     .wallet-item-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
     .wallet-item-desc { font-size: 12px; color: var(--muted); }
@@ -147,9 +148,9 @@
       font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
       white-space: nowrap; flex-shrink: 0;
     }
-    .status-detected   { background: rgba(34,197,94,.15);  color: var(--green); }
-    .status-install    { background: rgba(107,112,153,.12); color: var(--muted); }
-    .status-connecting { background: rgba(79,109,245,.15);  color: var(--accent2); }
+    .wallet-item.mobile-ready { border-color: rgba(79,109,245,.35); background: rgba(79,109,245,.05); }
+    .wallet-item.mobile-ready:hover { border-color: var(--accent); background: rgba(79,109,245,.1); }
+    .status-mobile { background: rgba(79,109,245,.18); color: var(--accent2); }
 
     /* ── STAKING STYLES ── */
     .staking-hero {
@@ -658,20 +659,39 @@
     return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   }
 
+  /* ── PLATFORM DETECTION ── */
+  // On mobile (iOS/Android) outside a wallet's in-app browser, window.* providers
+  // are never injected. We detect this and show "Open in app" instead of "Not installed".
+  const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // Inline SVG icons — no external requests, no CORS failures, always render correctly
+  const ICONS = {
+    phantom:  `<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="#AB9FF2"/><path d="M110.4 64.8C110.4 41.1 91.3 22 67.6 22H61c-24.4 0-44 19.6-44 44 0 8.8 7.2 16 16 16h4.2c2.2 8.6 10 15 19.4 15 2.6 0 5-.5 7.3-1.4 1.6 1 3.5 1.4 5.5 1.4h4.2c9.3 0 17-6.4 19.4-15h4c8.8 0 13.4-7.2 13.4-17.2zm-58.6 5.6c0 3.8-3.1 6.9-6.9 6.9s-6.9-3.1-6.9-6.9 3.1-6.9 6.9-6.9 6.9 3.1 6.9 6.9zm30.3 0c0 3.8-3.1 6.9-6.9 6.9s-6.9-3.1-6.9-6.9 3.1-6.9 6.9-6.9 6.9 3.1 6.9 6.9z" fill="white"/></svg>`,
+
+    solflare: `<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="#FC8A00"/><path d="M64 18L96 82H32L64 18Z" fill="white" opacity="0.9"/><path d="M64 110L32 82H96L64 110Z" fill="white" opacity="0.6"/></svg>`,
+
+    backpack: `<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="#E33E3F"/><path d="M44 44h40a8 8 0 018 8v32a8 8 0 01-8 8H44a8 8 0 01-8-8V52a8 8 0 018-8z" fill="white"/><path d="M54 44V38a10 10 0 0120 0v6" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/><rect x="56" y="60" width="16" height="12" rx="3" fill="#E33E3F"/></svg>`,
+
+    trust:    `<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="#3375BB"/><path d="M64 22l32 14v24c0 18-13.5 34.8-32 40C45.5 94.8 32 78 32 60V36L64 22z" fill="white" opacity="0.95"/><path d="M54 63l7 7 14-14" stroke="#3375BB" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
+    coinbase: `<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="#0052FF"/><circle cx="64" cy="64" r="34" fill="white"/><path d="M54 56h20a2 2 0 012 2v12a2 2 0 01-2 2H54a2 2 0 01-2-2V58a2 2 0 012-2z" fill="#0052FF"/></svg>`,
+
+    metamask: `<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="26" fill="#F6851B"/><polygon points="100,22 68,46 74,34" fill="#E2761B"/><polygon points="28,22 59.6,46.2 54.2,34" fill="#E4761B"/><polygon points="88.6,82 80,95.4 98.2,100.4 103.4,82.2" fill="#E4761B"/><polygon points="24.8,82.2 30,100.4 48.2,95.4 39.6,82" fill="#E4761B"/><polygon points="47.2,57.2 42.2,64.6 60.2,65.4 59.6,46" fill="#E4761B"/><polygon points="80.8,57.2 68.2,45.8 68,65.4 85.8,64.6" fill="#E4761B"/><polygon points="48.2,95.4 59,89.6 49.6,82.4" fill="#E4761B"/><polygon points="69,89.6 80,95.4 78.6,82.4" fill="#E4761B"/></svg>`
+  };
+
   /* ── WALLET DEFINITIONS ── */
-  // getProvider() is called fresh each time the modal opens so detection
-  // reflects the actual runtime state of window.* injection at that moment.
   const WALLETS = [
     {
       key: 'phantom',
       name: 'Phantom',
-      desc: 'Most popular Solana wallet',
-      icon: 'https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/icons/phantom.svg',
+      desc: isMobileDevice ? 'Tap to open in Phantom app' : 'Most popular Solana wallet',
       getProvider() {
         if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
         if (window.solana?.isPhantom)          return window.solana;
         return null;
       },
+      // On mobile, always show a deep link option even if not "detected"
+      mobileReady: true,
       deepLink() {
         return `https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}?ref=${encodeURIComponent(window.location.origin)}`;
       }
@@ -679,9 +699,9 @@
     {
       key: 'solflare',
       name: 'Solflare',
-      desc: 'Native Solana wallet',
-      icon: 'https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/icons/solflare.svg',
+      desc: isMobileDevice ? 'Tap to open in Solflare app' : 'Native Solana wallet',
       getProvider() { return window.solflare?.isSolflare ? window.solflare : null; },
+      mobileReady: true,
       deepLink() {
         return `https://solflare.com/ul/v1/browse/${encodeURIComponent(window.location.href)}?ref=${encodeURIComponent(window.location.origin)}`;
       }
@@ -690,62 +710,67 @@
       key: 'backpack',
       name: 'Backpack',
       desc: 'xNFT wallet by Coral',
-      icon: 'https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/icons/backpack.svg',
       getProvider() { return window.backpack?.isBackpack ? window.backpack : null; },
+      mobileReady: false,
       deepLink() { return null; }
     },
     {
       key: 'trust',
       name: 'Trust Wallet',
       desc: 'Multi-chain with Solana',
-      icon: 'https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/icons/trust.svg',
       getProvider() {
         return window.trustwallet?.solana ?? (window.solana?.isTrust ? window.solana : null);
       },
+      mobileReady: false,
       deepLink() { return null; }
     },
     {
       key: 'coinbase',
       name: 'Coinbase Wallet',
       desc: 'Supports Solana tokens',
-      icon: 'https://raw.githubusercontent.com/solana-labs/wallet-adapter/master/packages/wallets/icons/coinbase.svg',
       getProvider() { return window.coinbaseSolana ?? null; },
+      mobileReady: false,
       deepLink() { return null; }
     },
     {
       key: 'metamask',
       name: 'MetaMask',
       desc: 'Solana support via Snaps',
-      icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg',
       getProvider() {
         return (window.ethereum?.isMetaMask && window.solana?.isMetaMask) ? window.solana : null;
       },
+      mobileReady: false,
       deepLink() { return null; }
     }
   ];
 
   /* ── OPEN WALLET MODAL ── */
-  // Called fresh every time so detection is always up-to-date
   function openWalletModal() {
-    const list       = document.getElementById('walletModalList');
-    const detected   = WALLETS.filter(w => w.getProvider());
-    const undetected = WALLETS.filter(w => !w.getProvider());
+    const list = document.getElementById('walletModalList');
+
+    // On mobile: wallets with deepLinks are "ready to open" even if not window-injected
+    const detected      = WALLETS.filter(w => w.getProvider());
+    const mobileReady   = WALLETS.filter(w => !w.getProvider() && isMobileDevice && w.mobileReady);
+    const notAvailable  = WALLETS.filter(w => !w.getProvider() && !(isMobileDevice && w.mobileReady));
 
     let html = '';
     if (detected.length) {
-      html += `<div class="wallet-section-label">✅ Detected on your device</div>`;
-      html += detected.map(w => walletItemHTML(w, true)).join('');
+      html += `<div class="wallet-section-label">✅ Connected &amp; ready</div>`;
+      html += detected.map(w => walletItemHTML(w, 'detected')).join('');
     }
-    if (undetected.length) {
-      html += `<div class="wallet-section-label">📲 Not detected — tap to install or open in-app</div>`;
-      html += undetected.map(w => walletItemHTML(w, false)).join('');
+    if (mobileReady.length) {
+      html += `<div class="wallet-section-label">📲 Tap to open in app</div>`;
+      html += mobileReady.map(w => walletItemHTML(w, 'mobile')).join('');
     }
-    if (!detected.length && !undetected.length) {
-      html = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">No wallets found. Install a Solana wallet extension or app.</div>';
+    if (notAvailable.length) {
+      html += `<div class="wallet-section-label">🖥 Desktop / not installed</div>`;
+      html += notAvailable.map(w => walletItemHTML(w, 'none')).join('');
+    }
+    if (!detected.length && !mobileReady.length && !notAvailable.length) {
+      html = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">No wallets found. Install a Solana wallet.</div>';
     }
     list.innerHTML = html;
 
-    // Wire click events
     WALLETS.forEach(w => {
       const el = document.getElementById(`witem-${w.key}`);
       if (el) el.addEventListener('click', () => connectWallet(w.key));
@@ -754,17 +779,19 @@
     document.getElementById('walletModal').classList.add('open');
   }
 
-  function walletItemHTML(w, detected) {
+  function walletItemHTML(w, state) {
+    // state: 'detected' | 'mobile' | 'none'
+    const cls        = state === 'detected' ? 'detected' : state === 'mobile' ? 'mobile-ready' : '';
+    const statusCls  = state === 'detected' ? 'status-detected' : state === 'mobile' ? 'status-mobile' : 'status-install';
+    const statusTxt  = state === 'detected' ? '● Detected' : state === 'mobile' ? '↗ Open app' : 'Not installed';
     return `
-      <div class="wallet-item ${detected ? 'detected' : ''}" id="witem-${w.key}">
-        <img src="${w.icon}" alt="${w.name}" onerror="this.style.background='var(--border)';this.style.padding='8px';"/>
+      <div class="wallet-item ${cls}" id="witem-${w.key}">
+        <div class="wallet-icon-wrap">${ICONS[w.key] || ''}</div>
         <div class="wallet-item-info">
           <div class="wallet-item-name">${w.name}</div>
           <div class="wallet-item-desc">${w.desc}</div>
         </div>
-        <div class="wallet-item-status ${detected ? 'status-detected' : 'status-install'}">
-          ${detected ? '● Detected' : 'Not installed'}
-        </div>
+        <div class="wallet-item-status ${statusCls}">${statusTxt}</div>
       </div>`;
   }
 
@@ -822,10 +849,11 @@
     } catch(e) {
       if (itemEl) {
         itemEl.classList.remove('connecting');
-        const statusEl = itemEl.querySelector('.wallet-item-status');
+        const statusEl   = itemEl.querySelector('.wallet-item-status');
         const isDetected = !!walletDef.getProvider();
-        statusEl.textContent = isDetected ? '● Detected' : 'Not installed';
-        statusEl.className   = `wallet-item-status ${isDetected ? 'status-detected' : 'status-install'}`;
+        const isMobile   = isMobileDevice && walletDef.mobileReady && !isDetected;
+        statusEl.textContent = isDetected ? '● Detected' : isMobile ? '↗ Open app' : 'Not installed';
+        statusEl.className   = `wallet-item-status ${isDetected ? 'status-detected' : isMobile ? 'status-mobile' : 'status-install'}`;
       }
       if (e.code === 4001 || e.message?.includes('User rejected')) {
         toast('Connection cancelled.', 'error');
